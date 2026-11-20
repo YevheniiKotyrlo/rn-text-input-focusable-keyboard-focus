@@ -59,16 +59,20 @@ launch_app() {
     wait_for_label "${button_labels[1]}" || fail_step "the app showed no \"${button_labels[1]}\""
 }
 
-# Prints the content-desc of the node uiautomator reads as focused, or "(nothing focused)".
+# Prints the content-desc of the node uiautomator reads as focused, or "(nothing focused)". A dump taken while focus
+# moves out of a TextInput can catch no focused node, so a dump with none is taken again, up to three times.
 focused_label() {
-    local hierarchy node pattern='content-desc="([^"]*)"'
-    hierarchy="$(dump_window)"
-    while IFS= read -r node; do
-        if [[ "${node}" == *'focused="true"'* && "${node}" =~ ${pattern} ]]; then
-            printf '%s\n' "${BASH_REMATCH[1]}"
-            return 0
-        fi
-    done <<< "${hierarchy//<node/$'\n'<node}"
+    local attempt hierarchy node pattern='content-desc="([^"]*)"'
+    for ((attempt = 1; attempt <= 3; attempt += 1)); do
+        hierarchy="$(dump_window)"
+        while IFS= read -r node; do
+            if [[ "${node}" == *'focused="true"'* && "${node}" =~ ${pattern} ]]; then
+                printf '%s\n' "${BASH_REMATCH[1]}"
+                return 0
+            fi
+        done <<< "${hierarchy//<node/$'\n'<node}"
+        sleep 1
+    done
     printf '%s\n' "(nothing focused)"
 }
 
